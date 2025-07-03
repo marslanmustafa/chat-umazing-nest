@@ -32,10 +32,10 @@ export class ChatRoom extends Model<ChatRoom, ChatRoomCreationAttrs> {
   declare UserId2: string;
 
   @BelongsTo(() => User, 'UserId1')
-  declare user1: User;
+  declare User1: User;
 
   @BelongsTo(() => User, 'UserId2')
-  declare user2: User;
+  declare User2: User;
 
   @HasMany(() => Message)
   declare Messages: Message[];
