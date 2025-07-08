@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { OptionalJwtAuthGuard } from 'src/auth/optionalJwtAuthGuard';
+// import { OptionalJwtAuthGuard } from 'src/auth/OptionalJwtAuthGuard';
+import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
 
 @Controller('workspace')
 export class WorkspaceController {
@@ -60,9 +61,39 @@ export class WorkspaceController {
   }
 
   @Get(':id')
-  @UseGuards(OptionalJwtAuthGuard)
+  // @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   async getWorkspaceById(@Request() req: any, @Param('id') id: string) {
     return this.WorkspaceService.getWorkspaceById(req, id);
+  }
+
+  @Patch('private/:id')
+  @UseGuards(JwtAuthGuard)
+  async updateWorkspaceById(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() updateWorkspaceDto: UpdateWorkspaceDto,
+  ) {
+    return this.WorkspaceService.updateWorkspaceById(req, id, updateWorkspaceDto);
+  }
+
+  @Delete('private/:id')
+  @UseGuards(JwtAuthGuard)
+  async deleteWorkspaceById(
+    @Request() req: any,
+    @Param('id') id: string
+  ) {
+    return this.WorkspaceService.deleteWorkspaceById(req, id);
+  }
+
+  @Delete(':workspaceId/member/:memberId')
+  @UseGuards(JwtAuthGuard)
+  async deleteWorkspaceMember(
+    @Request() req: any,
+    @Param('workspaceId') workspaceId: string,
+    @Param('memberId') memberId: string
+  ) {
+    return this.WorkspaceService.deleteWorkspaceMember(req, workspaceId, memberId);
   }
 
 }

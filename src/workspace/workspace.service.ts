@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Workspace } from './models/workspace.model';
 import { User } from 'src/user/user.model';
 import { failure, success } from 'src/utils/response.helper';
 import { WorkspaceMember } from './models/workspaceMemeber.model';
 import * as crypto from 'crypto'
+import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
 
 @Injectable()
 export class WorkspaceService {
@@ -305,8 +306,80 @@ export class WorkspaceService {
 
     return success('Workspace fetched successfully', {
       workspace: singleWorkspace,
-      isMember: userId ? isMember : undefined, 
+      isMember: userId ? isMember : undefined,
     });
+  }
+
+  async updateWorkspaceById(req: any, id: string, updateWorkspaceDto: UpdateWorkspaceDto) {
+    const userId = req.user.id
+
+    const workspace = await this.workspaceModel.findOne({
+      where: { id },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    console.log("wwwwU", userId)
+    console.log("wwww", workspace)
+    if (workspace.createdBy !== userId) {
+      throw new ForbiddenException('You are not allowed to update this workspace');
+    }
+
+    await workspace.update(updateWorkspaceDto);
+
+    return success('Workspace updated successfully', {
+      workspace: workspace.toJSON(),
+    });
+  }
+
+  async deleteWorkspaceById(req: any, workspaceId: string) {
+    const userId = req.user.id
+    const workspace = await this.workspaceModel.findOne({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.type === 'public') {
+      throw new ForbiddenException('public workspace Can`t be deleted please contact to administrator');
+    }
+
+    if (workspace.createdBy !== userId) {
+      throw new ForbiddenException('Only the creator can delete this workspace');
+    }
+
+    await workspace.destroy();
+
+    return success('Workspace deleted successfully', workspace);
+  }
+
+  async deleteWorkspaceMember(req: any, workspaceId: string, memberId: string) {
+    const userId = req.user.id
+    const member = await this.workspaceMemberModel.findOne({
+      where: { workspaceId, userId: memberId },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Member not found in this workspace');
+    }
+
+    const workspace = await this.workspaceModel.findOne({ where: { id: workspaceId } });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.createdBy !== userId && userId !== memberId) {
+      throw new ForbiddenException('You are not allowed to remove this member');
+    }
+
+    await member.destroy();
+
+    return success('Member removed successfully', member);
   }
 
 }
