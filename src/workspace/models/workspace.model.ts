@@ -29,10 +29,10 @@ export class Workspace extends Model {
   @Column
   declare createdBy: string;
 
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, { as: 'creator', foreignKey: 'createdBy' })
   creator: User;
 
 
-  @HasMany(() => WorkspaceMember)
-  members: WorkspaceMember[];
+ @HasMany(() => WorkspaceMember, { as: 'members', foreignKey: 'workspaceId' })
+members: WorkspaceMember[]
 }

@@ -19,13 +19,13 @@ export class WorkspaceMember extends Model {
   @Column
   declare workspaceId: string;
 
-  @BelongsTo(() => Workspace)
-  workspace: Workspace;
-
   @ForeignKey(() => User)
   @Column
   declare userId: string;
 
-  @BelongsTo(() => User)
+  @BelongsTo(() => Workspace, { as: 'workspace', foreignKey: 'workspaceId' })
+  workspace: Workspace;
+
+  @BelongsTo(() => User, { as: 'member', foreignKey: 'userId' })
   member: User;
 }

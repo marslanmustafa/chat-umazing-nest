@@ -265,4 +265,48 @@ export class WorkspaceService {
     }
   }
 
+  async getWorkspaceById(req: any, id: string) {
+    const userId = req?.user?.id ?? null;
+
+    const singleWorkspace = await this.workspaceModel.findOne({
+      where: { id },
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'email', 'imageUrl'],
+        },
+        {
+          model: WorkspaceMember,
+          as: 'members',
+          include: [
+            {
+              model: User,
+              as: 'member',
+              attributes: ['id', 'name', 'email', 'imageUrl'],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!singleWorkspace) {
+      return failure('Workspace not found');
+    }
+
+    let isMember = false;
+    const plainWorkspace = singleWorkspace.toJSON();
+    if (userId && plainWorkspace.members) {
+      console.log(plainWorkspace.members)
+      isMember = plainWorkspace.members.some(
+        (m) => m.userId === userId,
+      );
+    }
+
+    return success('Workspace fetched successfully', {
+      workspace: singleWorkspace,
+      isMember: userId ? isMember : undefined, 
+    });
+  }
+
 }
