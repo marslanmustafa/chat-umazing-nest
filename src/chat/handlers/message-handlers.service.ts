@@ -35,8 +35,8 @@ export class MessageHandlersService {
           },
           
           include: [
-            { model: User, as: 'User1', attributes: ['id', 'name', 'email', 'imageUrl'] },
-            { model: User, as: 'User2', attributes: ['id', 'name', 'email', 'imageUrl'] },
+            { model: User, as: 'user1', attributes: ['id', 'name', 'email', 'imageUrl'] },
+            { model: User, as: 'user2', attributes: ['id', 'name', 'email', 'imageUrl'] },
           ],
         });
 

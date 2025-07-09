@@ -3,11 +3,20 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
 import { DatabaseModule } from './db/db.module';
+import { WorkspaceModule } from './workspace/workspace.module';
+import { ConfigModule } from '@nestjs/config';
 import { GatewayModule } from './chat/gateway/gateway.module';
 
 @Module({
-  imports: [ChatModule, DatabaseModule ],
+  imports: [ConfigModule.forRoot({
+    isGlobal: true,
+  }),
+    ChatModule,
+    DatabaseModule,
+    WorkspaceModule,
+    GatewayModule
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -8,6 +8,7 @@ import {
 } from 'sequelize-typescript';
 import { ChatRoom } from '../chatroom/chatroom.model';
 import { Message } from '../message/message.model';
+import { Workspace } from 'src/workspace/models/workspace.model';
 
 @Table
 export class User extends Model<User> {
@@ -38,4 +39,7 @@ export class User extends Model<User> {
 
   @HasMany(() => Message, 'ReceiverId')
   declare receivedMessages: Message[];
+
+  @HasMany(() => Workspace, 'createdBy')
+  declare createdWorkspaces: Workspace[];
 }

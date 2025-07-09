@@ -15,7 +15,7 @@ import { RoomHandlersService } from '../handlers/room-handlers.service';
 @WebSocketGateway({
   // transports: ['websocket'],
   cors: {
-    origin: '*', // replace with frontend origin in prod
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 })
@@ -38,8 +38,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      const decoded = jwt.verify(token, 'umazing-key_jwt_secret_key');
-      (socket.data as any).user = decoded; // store decoded user in socket.data
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      (socket.data as any).user = decoded;
       socket.emit('welcome', {
         message: `Welcome user ${(socket.data as any).user.email}!`,
       });

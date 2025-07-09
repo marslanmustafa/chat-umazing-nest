@@ -8,7 +8,7 @@ import { JwtStrategy } from './JwtStrategy';
   imports: [
     PassportModule, // ✅ needed
     JwtModule.register({
-      secret: 'umazing-key_jwt_secret_key',
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
   ],
