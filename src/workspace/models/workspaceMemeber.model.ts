@@ -5,6 +5,7 @@ import {
   PrimaryKey,
   ForeignKey,
   BelongsTo,
+  DataType,
 } from 'sequelize-typescript';
 import { Workspace } from './workspace.model';
 import { User } from 'src/user/user.model';
@@ -14,6 +15,11 @@ export class WorkspaceMember extends Model {
   @PrimaryKey
   @Column
   declare id: string;
+
+  @Column({
+      type: DataType.ENUM('admin', 'member'),
+    })
+    declare type: 'admin' | 'member';
 
   @ForeignKey(() => Workspace)
   @Column

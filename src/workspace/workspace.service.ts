@@ -66,7 +66,7 @@ export class WorkspaceService {
     }
   }
 
-   async createPublicWorkspace(req: any, name: string) {
+  async createPublicWorkspace(req: any, name: string) {
     const userId = req.user.id
     try {
       const newWorkspace = await this.workspaceModel.create({
@@ -76,13 +76,20 @@ export class WorkspaceService {
         createdBy: userId,
       });
 
+      await this.workspaceMemberModel.create({
+        id: CryptUtil.generateId(),
+        workspaceId: newWorkspace.id,
+        userId: userId,
+        type: 'admin',
+      });
+
       return success('Public workspace created successfully', newWorkspace);
     } catch (error) {
       return failure(error.message || 'Failed to create public workspace');
     }
   }
 
-   async addUserInPublicWorkspace(req: any, workspaceId: string, userId: string) {
+  async addUserInPublicWorkspace(req: any, workspaceId: string, userId: string) {
     const reqUserId = req.user.id;
     try {
       const privateWorkspace = await this.workspaceModel.findOne({
@@ -108,7 +115,7 @@ export class WorkspaceService {
         id: CryptUtil.generateId(),
         workspaceId,
         userId,
-        role: 'member',
+        type: 'member',
       });
 
       return success(
@@ -170,6 +177,29 @@ export class WorkspaceService {
     }
   }
 
+  async createPrivateWorkspace(req: any, name: string) {
+    const userId = req.user.id
+    try {
+      const newWorkspace = await this.workspaceModel.create({
+        id: CryptUtil.generateId(),
+        name,
+        type: 'private',
+        createdBy: userId,
+      });
+
+      await this.workspaceMemberModel.create({
+        id: CryptUtil.generateId(),
+        workspaceId: newWorkspace.id,
+        userId: userId,
+        type: 'admin',
+      });
+
+      return success('Private workspace created successfully', newWorkspace);
+    } catch (error) {
+      return failure(error.message || 'Failed to create private workspace');
+    }
+  }
+
   async getUserPrivateWorkspaces(req: any, pageNo?: number, pageSize?: number) {
     const userId = req.user.id
     try {
@@ -222,24 +252,8 @@ export class WorkspaceService {
     }
   }
 
-  async createPrivateWorkspace(req: any, name: string) {
-    const userId = req.user.id
-    try {
-      const newWorkspace = await this.workspaceModel.create({
-        id: CryptUtil.generateId(),
-        name,
-        type: 'private',
-        createdBy: userId,
-      });
-
-      return success('Private workspace created successfully', newWorkspace);
-    } catch (error) {
-      return failure(error.message || 'Failed to create private workspace');
-    }
-  }
-
-  async addUserInPrivateWorkspace(req: any, workspaceId: string) {
-    const userId = req.user.id;
+  async addUserInPrivateWorkspace(req: any, workspaceId: string, userId: string) {
+    const reqUserId = req.user.id;
     try {
       const privateWorkspace = await this.workspaceModel.findOne({
         where: { type: 'private', id: workspaceId },
@@ -249,6 +263,14 @@ export class WorkspaceService {
         return failure('Private workspace not found');
       }
 
+      const isAdmin = await this.workspaceMemberModel.findOne({
+        where: { userId: reqUserId, type: "admin" }
+      })
+
+      if (!isAdmin) {
+        return failure('Only Admin can Add Members');
+      }
+
       const existingMember = await this.workspaceMemberModel.findOne({
         where: {
           workspaceId,
@@ -256,6 +278,7 @@ export class WorkspaceService {
         },
       });
 
+      console.log(existingMember)
       if (existingMember) {
         return failure('User is already a member of the private workspace');
       }
@@ -264,7 +287,7 @@ export class WorkspaceService {
         id: CryptUtil.generateId(),
         workspaceId,
         userId,
-        role: 'member',
+        type: 'member',
       });
 
       return success(
@@ -345,27 +368,46 @@ export class WorkspaceService {
   }
 
   async deleteWorkspaceById(req: any, workspaceId: string) {
-    const userId = req.user.id
+    const userId = req.user.id;
+
     const workspace = await this.workspaceModel.findOne({
       where: { id: workspaceId },
+      include: [
+        {
+          model: WorkspaceMember,
+          as: 'members',
+          attributes: ['userId', 'type'],
+          include: [{
+            model: User,
+            as: "member"
+          }]
+        },
+      ],
     });
 
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
 
-    if (workspace.type === 'public') {
-      throw new ForbiddenException('public workspace Can`t be deleted please contact to administrator');
-    }
+    const plainWorkspace = workspace.toJSON();
 
-    if (workspace.createdBy !== userId) {
-      throw new ForbiddenException('Only the creator can delete this workspace');
+    const isCreator = plainWorkspace.createdBy === userId;
+
+    const isAdmin = plainWorkspace.members.some(
+      (m) => m.userId === userId && m.role === 'admin',
+    );
+    console.log(plainWorkspace)
+    if (!isCreator && !isAdmin) {
+      throw new ForbiddenException(
+        'Only the creator or an admin can delete this workspace',
+      );
     }
 
     await workspace.destroy();
 
     return success('Workspace deleted successfully', workspace);
   }
+
 
   async deleteWorkspaceMember(req: any, workspaceId: string, memberId: string) {
     const userId = req.user.id
