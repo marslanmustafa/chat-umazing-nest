@@ -35,7 +35,9 @@ export class UserService {
     }
 
     const user = await this.userModel.create(createPayload);
-    const token = this.generateToken(user);
+    
+   const plainUser = user.toJSON()
+    const token = this.generateToken({ id: plainUser.id, email: plainUser.email });
 
     return success("Signup Successfully", createPayload, { token })
   }

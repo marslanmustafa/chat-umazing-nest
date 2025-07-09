@@ -7,8 +7,8 @@ export const mysqlConfig: SequelizeModuleOptions = {
   port: 3306,
   username: 'root',
   password: '',
-  database: 'umazing',
+  database: 'chat',
   autoLoadModels: true,
-  // synchronize: true, 
+  synchronize: true, 
   logging: false,
 };
