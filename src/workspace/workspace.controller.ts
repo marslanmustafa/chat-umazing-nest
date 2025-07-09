@@ -3,6 +3,7 @@ import { WorkspaceService } from './workspace.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 // import { OptionalJwtAuthGuard } from 'src/auth/OptionalJwtAuthGuard';
 import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
+import { AddUserToPublicWorkspaceDto } from './dto/addUserToPublicWorkspace.dto';
 
 @Controller('workspace')
 export class WorkspaceController {
@@ -16,13 +17,26 @@ export class WorkspaceController {
     return this.WorkspaceService.getAllPublicWorkspaces(Number(pageNo), Number(pageSize))
   }
 
+  @Post('public/createWorkspace')
+  @UseGuards(JwtAuthGuard)
+  async createPublicWorkspace(
+    @Request() req: any,
+    @Body('name') name: string,
+  ) {
+    return this.WorkspaceService.createPublicWorkspace(req, name)
+  }
+
   @Post('/public/addUser')
   @UseGuards(JwtAuthGuard)
   async addUserInPublicWorkspace(
-    @Body('userId') userId: string
+    @Request() req: any,
+    @Body() body: AddUserToPublicWorkspaceDto,
   ) {
-    return this.WorkspaceService.addUserInPublicWorkspace(userId)
+    const { workspaceId, userId } = body;
+    return this.WorkspaceService.addUserInPublicWorkspace(req, workspaceId, userId);
   }
+
+
   @Get('private')
   @UseGuards(JwtAuthGuard)
   async getPrivateWorkspace(

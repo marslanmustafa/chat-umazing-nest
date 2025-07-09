@@ -10,8 +10,15 @@ import { ChatRoom } from '../chatroom/chatroom.model';
 import { Message } from '../message/message.model';
 import { Workspace } from 'src/workspace/models/workspace.model';
 
+interface UserCreationAttrs  {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+};
+
 @Table
-export class User extends Model<User> {
+export class User extends Model<User, UserCreationAttrs> {
   @PrimaryKey
   @Column
   declare id: string;

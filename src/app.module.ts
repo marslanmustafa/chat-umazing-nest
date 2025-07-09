@@ -6,6 +6,7 @@ import { DatabaseModule } from './db/db.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { ConfigModule } from '@nestjs/config';
 import { GatewayModule } from './chat/gateway/gateway.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -14,7 +15,8 @@ import { GatewayModule } from './chat/gateway/gateway.module';
     ChatModule,
     DatabaseModule,
     WorkspaceModule,
-    GatewayModule
+    GatewayModule,
+    UserModule
   ],
   controllers: [AppController],
   providers: [AppService],

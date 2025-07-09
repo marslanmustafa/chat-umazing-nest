@@ -65,25 +65,31 @@ export class WorkspaceService {
     }
   }
 
-  async addUserInPublicWorkspace(userId: string) {
-    console.log(userId)
+   async createPublicWorkspace(req: any, name: string) {
+    const userId = req.user.id
     try {
-      let workspaceId: string;
-
-      const publicWorkspace = await this.workspaceModel.findOne({
-        where: { type: 'public' },
+      const newWorkspace = await this.workspaceModel.create({
+        id: crypto.randomBytes(16).toString("hex"),
+        name,
+        type: 'public',
+        createdBy: userId,
       });
 
-      if (!publicWorkspace) {
-        const newPublicWorkspace = await this.workspaceModel.create({
-          id: crypto.randomBytes(16).toString("hex"),
-          name: 'Public Workspace',
-          type: 'public',
-          createdBy: userId,
-        });
-        workspaceId = newPublicWorkspace.id;
-      } else {
-        workspaceId = publicWorkspace.id;
+      return success('Public workspace created successfully', newWorkspace);
+    } catch (error) {
+      return failure(error.message || 'Failed to create public workspace');
+    }
+  }
+
+   async addUserInPublicWorkspace(req: any, workspaceId: string, userId: string) {
+    const reqUserId = req.user.id;
+    try {
+      const privateWorkspace = await this.workspaceModel.findOne({
+        where: { type: 'public', id: workspaceId },
+      });
+
+      if (!privateWorkspace) {
+        return failure('Public workspace not found');
       }
 
       const existingMember = await this.workspaceMemberModel.findOne({
@@ -94,19 +100,22 @@ export class WorkspaceService {
       });
 
       if (existingMember) {
-        return failure('User is already a member of the public workspace');
+        return failure('User is already a member of the private workspace');
       }
 
-      await this.workspaceMemberModel.create({
+      const newMember = await this.workspaceMemberModel.create({
         id: crypto.randomBytes(16).toString("hex"),
         workspaceId,
         userId,
         role: 'member',
       });
 
-      return success('User added to public workspace successfully');
+      return success(
+        'User added to private workspace successfully',
+        newMember
+      );
     } catch (error) {
-      return failure(error.message || 'Failed to add user to public workspace');
+      return failure(error.message || 'Failed to add user to private workspace');
     }
   }
 

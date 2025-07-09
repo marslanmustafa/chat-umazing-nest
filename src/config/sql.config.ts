@@ -1,7 +1,7 @@
 // src/database/sequelize.config.ts
 import { SequelizeModuleOptions } from '@nestjs/sequelize';
 
-export const sequelizeConfig: SequelizeModuleOptions = {
+export const mysqlConfig: SequelizeModuleOptions = {
   dialect: 'mysql',
   host: 'localhost',
   port: 3306,

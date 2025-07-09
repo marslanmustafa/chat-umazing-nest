@@ -7,6 +7,8 @@ import {
 import * as jwt from 'jsonwebtoken';
 import { Socket } from 'socket.io';
 
+const jwtSecret = "jwt_secret_key_nest";
+
 @Injectable()
 export class JwtWsAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
@@ -18,7 +20,7 @@ export class JwtWsAuthGuard implements CanActivate {
     }
 
     try {
-      const decoded = jwt.verify(token, 'umazing-key_jwt_secret_key');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || jwtSecret);
       (client.data as any).user = decoded;
       return true;
     } catch (err) {

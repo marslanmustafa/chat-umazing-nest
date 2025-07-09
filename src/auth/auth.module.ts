@@ -1,18 +1,14 @@
-// src/auth/auth.module.ts
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './JwtStrategy';
-
+import { Module } from "@nestjs/common";
+import { JwtModule } from "@nestjs/jwt";
+import { AuthService } from "./auth.service";
+import { JwtStrategy } from "./Jwt.strategy";
+import { jwtconfig } from "../config/jwt.config";
 @Module({
-  imports: [
-    PassportModule, // ✅ needed
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '7d' },
-    }),
-  ],
-  providers: [JwtStrategy],
-  exports: [JwtModule],
+    imports: [JwtModule.registerAsync(jwtconfig)],
+    controllers: [],
+    providers: [JwtStrategy, AuthService],
+    exports: [AuthService]
 })
-export class AuthModule {}
+export class AuthModule {
+
+}
