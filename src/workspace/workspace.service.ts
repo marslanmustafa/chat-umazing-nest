@@ -6,6 +6,7 @@ import { failure, success } from 'src/utils/response.helper';
 import { WorkspaceMember } from './models/workspaceMemeber.model';
 import * as crypto from 'crypto'
 import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
+import { CryptUtil } from 'src/utils/crypt.util';
 
 @Injectable()
 export class WorkspaceService {
@@ -69,7 +70,7 @@ export class WorkspaceService {
     const userId = req.user.id
     try {
       const newWorkspace = await this.workspaceModel.create({
-        id: crypto.randomBytes(16).toString("hex"),
+        id: CryptUtil.generateId(),
         name,
         type: 'public',
         createdBy: userId,
@@ -104,7 +105,7 @@ export class WorkspaceService {
       }
 
       const newMember = await this.workspaceMemberModel.create({
-        id: crypto.randomBytes(16).toString("hex"),
+        id: CryptUtil.generateId(),
         workspaceId,
         userId,
         role: 'member',
@@ -225,7 +226,7 @@ export class WorkspaceService {
     const userId = req.user.id
     try {
       const newWorkspace = await this.workspaceModel.create({
-        id: crypto.randomBytes(16).toString("hex"),
+        id: CryptUtil.generateId(),
         name,
         type: 'private',
         createdBy: userId,
@@ -260,7 +261,7 @@ export class WorkspaceService {
       }
 
       const newMember = await this.workspaceMemberModel.create({
-        id: crypto.randomBytes(16).toString("hex"),
+        id: CryptUtil.generateId(),
         workspaceId,
         userId,
         role: 'member',
