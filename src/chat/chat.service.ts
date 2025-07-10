@@ -206,6 +206,7 @@ export class ChatService {
       SenderId: senderId,
       ReceiverId: receiverId,
       message_text: content,
+      type: 'dm'
     });
 
     return message;

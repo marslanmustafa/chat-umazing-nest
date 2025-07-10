@@ -7,16 +7,19 @@ import {
   BelongsTo,
   PrimaryKey,
   Default,
+  DataType,
 } from 'sequelize-typescript';
 import { ChatRoom } from '../chatroom/chatroom.model';
 import { User } from '../user/user.model';
 
 interface MessageCreationAttrs {
   id: string;
-  RoomId: string;
+  RoomId?: string;
   SenderId: string;
-  ReceiverId: string;
+  ReceiverId?: string;
+  workspaceId?: string;
   message_text: string;
+  type?: 'dm' | 'workspace';
 }
 
 @Table
@@ -35,6 +38,12 @@ export class Message extends Model<Message, MessageCreationAttrs> {
   @Default(() => new Date())
   @Column
   declare timestamp: Date;
+
+  @Column({
+    type: DataType.ENUM('dm', 'workspace'),
+    defaultValue: 'dm',
+  })
+  declare type: 'dm' | 'workspace';
 
   @ForeignKey(() => ChatRoom)
   @Column

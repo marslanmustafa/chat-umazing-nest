@@ -33,7 +33,7 @@ export class MessageHandlersService {
               { UserId1: receiverId, UserId2: senderId },
             ],
           },
-          
+
           include: [
             { model: User, as: 'user1', attributes: ['id', 'name', 'email', 'imageUrl'] },
             { model: User, as: 'user2', attributes: ['id', 'name', 'email', 'imageUrl'] },
@@ -54,6 +54,7 @@ export class MessageHandlersService {
           SenderId: senderId,
           ReceiverId: receiverId,
           message_text: content,
+          type: 'dm'
         });
 
         const sender = await User.findByPk(senderId, { attributes: ['id', 'name', 'email', 'imageUrl'] });
