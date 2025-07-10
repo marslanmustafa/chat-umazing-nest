@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Workspace } from './models/workspace.model';
 import { User } from 'src/user/user.model';
@@ -7,12 +7,14 @@ import { WorkspaceMember } from './models/workspaceMemeber.model';
 import * as crypto from 'crypto'
 import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
 import { CryptUtil } from 'src/utils/crypt.util';
+import { Message } from 'src/message/message.model';
 
 @Injectable()
 export class WorkspaceService {
   constructor(
     @InjectModel(Workspace) private workspaceModel: typeof Workspace,
     @InjectModel(WorkspaceMember) private workspaceMemberModel: typeof WorkspaceMember,
+    @InjectModel(Message) private MessageModel: typeof Message,
     @InjectModel(User) private userModel: typeof User,
   ) { }
 
@@ -29,6 +31,21 @@ export class WorkspaceService {
             model: User,
             as: 'creator',
             attributes: ['id', 'name', 'email', 'imageUrl'],
+          },
+          {
+            model: Message,
+            as: 'messages',
+            attributes: [
+              'message_text',
+              'SenderId',
+              'workspaceId',
+              'type',
+              'timestamp',
+              'read',
+            ],
+            separate: true,
+            limit: 1,
+            order: [['timestamp', 'DESC']],
           },
           {
             model: WorkspaceMember,
@@ -51,9 +68,16 @@ export class WorkspaceService {
 
       const publicWorkspaces = await this.workspaceModel.findAll(queryOptions);
 
+      const transformed = publicWorkspaces.map(workspace => {
+        const w = workspace.toJSON();
+        w.lastMessage = w.messages?.[0] || null;
+        delete w.messages;
+        return w;
+      });
+
       return success(
         'Public Workspaces fetched successfully',
-        publicWorkspaces,
+        transformed,
         {
           totals: totalCount,
           ...(pageNo && pageSize
@@ -61,6 +85,7 @@ export class WorkspaceService {
             : {}),
         }
       );
+
     } catch (error) {
       return failure(error.message || 'Failed to fetch public workspaces');
     }
@@ -205,8 +230,16 @@ export class WorkspaceService {
     try {
       const where = { type: 'private' };
 
-      const totalCount = await this.workspaceModel.count({ where });
-
+      const totalCount = await this.workspaceModel.count({
+        where,
+        include: [
+          {
+            model: WorkspaceMember,
+            as: 'members',
+            where: { userId },
+          },
+        ],
+      });
       const queryOptions: any = {
         where,
         include: [
@@ -214,6 +247,21 @@ export class WorkspaceService {
             model: User,
             as: 'creator',
             attributes: ['id', 'name', 'email', 'imageUrl'],
+          },
+          {
+            model: Message,
+            as: 'messages',
+            attributes: [
+              'message_text',
+              'SenderId',
+              'workspaceId',
+              'type',
+              'timestamp',
+              'read',
+            ],
+            separate: true,
+            limit: 1,
+            order: [['timestamp', 'DESC']],
           },
           {
             model: WorkspaceMember,
@@ -235,11 +283,18 @@ export class WorkspaceService {
         queryOptions.offset = (pageNo - 1) * pageSize;
       }
 
-      const publicWorkspaces = await this.workspaceModel.findAll(queryOptions);
+      const privateWorkspaces = await this.workspaceModel.findAll(queryOptions);
+
+      const transformed = privateWorkspaces.map(workspace => {
+        const w = workspace.toJSON();
+        w.lastMessage = w.messages?.[0] || null;
+        delete w.messages;
+        return w;
+      });
 
       return success(
         'Private Workspaces fetched successfully',
-        publicWorkspaces,
+        transformed,
         {
           totals: totalCount,
           ...(pageNo && pageSize
@@ -247,6 +302,7 @@ export class WorkspaceService {
             : {}),
         }
       );
+
     } catch (error) {
       return failure(error.message || 'Failed to fetch private workspaces');
     }
@@ -434,4 +490,34 @@ export class WorkspaceService {
     return success('Member removed successfully', member);
   }
 
+  // chat related methods
+
+  async sendMessage(senderId: string, workspaceId: string, content: string) {
+
+    const workspace = await this.workspaceModel.findOne({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const isMember = await this.workspaceMemberModel.findOne({
+      where: { workspaceId, userId: senderId },
+    });
+
+    if (!isMember) {
+      throw new ForbiddenException('You are not a member of this workspace');
+    }
+
+    const message = await this.MessageModel.create({
+      id: `msg-${Date.now()}`,
+      workspaceId: workspace.id,
+      SenderId: senderId,
+      message_text: content,
+      type: 'workspace'
+    });
+
+    return success("Message Created Successfully", message);
+  }
 }

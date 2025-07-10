@@ -5,6 +5,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
 import { AddUserToPublicWorkspaceDto } from './dto/addUserToPublicWorkspace.dto';
 import { AddUserToPrivateWorkspaceDto } from './dto/addUserToPrivateWorkspace.dto copy';
+import { SendMessageDto } from './dto/sendMessage.dto';
 
 @Controller('workspace')
 export class WorkspaceController {
@@ -110,6 +111,15 @@ export class WorkspaceController {
     @Param('memberId') memberId: string
   ) {
     return this.WorkspaceService.deleteWorkspaceMember(req, workspaceId, memberId);
+  }
+
+  // message Related Routes
+
+  @Post('sendMessage')
+  @UseGuards(JwtAuthGuard)
+  async sendMessage(@Request() req: Request, @Body() body: SendMessageDto) {
+    const senderId = (req as any).user.id; // or use a custom type (better)
+    return this.WorkspaceService.sendMessage(senderId, body.workspaceId, body.content);
   }
 
 }

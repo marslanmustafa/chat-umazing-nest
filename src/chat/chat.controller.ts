@@ -42,6 +42,7 @@ export class ChatController {
   }
 
  @Post('send_message')
+  @UseGuards(JwtAuthGuard)
   async sendMessage(@Req() req: Request, @Body() body: SendMessageDto) {
     const senderId = (req as any).user.id; // or use a custom type (better)
     return this.chatService.sendMessage(senderId, body.receiverId, body.content);
