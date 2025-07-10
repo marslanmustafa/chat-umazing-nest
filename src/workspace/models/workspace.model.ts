@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { WorkspaceMember } from './workspaceMemeber.model';
 import { User } from 'src/user/user.model';
+import { Message } from 'src/message/message.model';
 
 @Table
 export class Workspace extends Model {
@@ -33,6 +34,9 @@ export class Workspace extends Model {
   creator: User;
 
 
- @HasMany(() => WorkspaceMember, { as: 'members', foreignKey: 'workspaceId' })
-members: WorkspaceMember[]
+  @HasMany(() => WorkspaceMember, { as: 'members', foreignKey: 'workspaceId' })
+  members: WorkspaceMember[];
+
+  @HasMany(() => Message, { foreignKey: 'workspaceId' })
+  messages: Message[]
 }

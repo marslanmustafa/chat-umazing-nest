@@ -11,6 +11,7 @@ import {
 } from 'sequelize-typescript';
 import { ChatRoom } from '../chatroom/chatroom.model';
 import { User } from '../user/user.model';
+import { Workspace } from 'src/workspace/models/workspace.model';
 
 interface MessageCreationAttrs {
   id: string;
@@ -57,6 +58,10 @@ export class Message extends Model<Message, MessageCreationAttrs> {
   @Column
   declare ReceiverId: string;
 
+  @ForeignKey(() => Workspace)
+  @Column
+  declare workspaceId: string;
+
   @BelongsTo(() => ChatRoom)
   declare chatRoom: ChatRoom;
 
@@ -65,4 +70,7 @@ export class Message extends Model<Message, MessageCreationAttrs> {
 
   @BelongsTo(() => User, 'ReceiverId')
   declare Receiver: User;
+
+  @BelongsTo(() => Workspace, 'workspaceId')
+  declare workspace: Workspace;
 }
