@@ -58,9 +58,10 @@ export class UserService {
   }
 
   async getAllUsers() {
-    return this.userModel.findAll({
+    const users = await this.userModel.findAll({
       attributes: ['id', 'name', 'email', 'imageUrl', 'createdAt'],
     });
+    return success("All Users Data Fetched Successfully", users);
   }
 
   async getUserById(userId: string) {
@@ -68,7 +69,7 @@ export class UserService {
       attributes: ['id', 'name', 'email', 'imageUrl', 'createdAt'],
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return success("user Profile Data Fetched Successfully", user);
   }
 
   async updateUserProfile(

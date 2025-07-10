@@ -29,7 +29,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(socket: Socket) {
-    const token = socket.handshake.auth?.token;
+    let token = socket.handshake.auth?.token;
+
+     if (!token) {
+    const authHeader = socket.handshake.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7); // remove 'Bearer '
+    }
+  }
+
 
     if (!token) {
       console.error('Authentication error: No token provided');

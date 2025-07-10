@@ -17,7 +17,7 @@ export class MessageHandlersService {
   }
 
   private handleSendMessage(server: Server, socket: Socket) {
-    socket.on('sendMessage', async ({ roomId, receiverId, content }) => {
+    socket.on('sendMessage', async ({ receiverId, content }) => {
       try {
         const senderId = socket.data.user.id;
         console.log({ senderId, receiverId, content });
