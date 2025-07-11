@@ -42,21 +42,19 @@ private handleStopTyping(socket: Socket) {
   });
 }
 
-
-
   private handleMessageRead(server: Server, socket: Socket) {
-    socket.on('messageRead', async ({ roomId }: { roomId: string }) => {
+    socket.on('messageRead', async ({ workspaceId }: { workspaceId: string }) => {
       try {
         const user = socket.data.user;
-        if (!user?.id || !roomId) return;
+        if (!user?.id || !workspaceId) return;
 
         await Message.update(
           { read: true },
-          { where: { RoomId: roomId, ReceiverId: user.id, read: false } }
+          { where: { workspaceId: workspaceId, ReceiverId: user.id, read: false } }
         );
 
-        server.to(roomId).emit('userMessageRead', {
-          roomId,
+        server.to(workspaceId).emit('userMessageRead', {
+          workspaceId,
           userId: user.id,
         });
       } catch (err) {
