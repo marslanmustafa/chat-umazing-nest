@@ -13,7 +13,7 @@ export class WorkspaceMessageHandlersService {
   handle(server: Server, socket: Socket) {
     this.handleSendMessage(server, socket);
     this.handleJoinWorkspace(socket);
-    this.handleLeaveChatRoom(socket);
+    this.handleLeaveWorkspace(socket);
     this.handleDisconnect();
   }
 
@@ -162,24 +162,33 @@ export class WorkspaceMessageHandlersService {
 }
 
 
-  private handleLeaveChatRoom(socket: Socket) {
-    socket.on('leaveChatRoom', (roomId: string) => {
-      if (this.activeRooms.has(roomId)) {
-        const users = (this.activeRooms.get(roomId) ?? []).filter(id => id !== socket.data.user.id);
-        if (users.length === 0) {
-          this.activeRooms.delete(roomId);
-        } else {
-          this.activeRooms.set(roomId, users);
-        }
-      }
-    });
-  }
+private handleLeaveWorkspace(socket: Socket) {
+  socket.on('leaveWorkspace', (workspaceId: string) => {
+    socket.leave(workspaceId);
+
+    const userId = socket.data.user?.id;
+    if (!workspaceId || !userId) return;
+
+    const users = this.activeRooms.get(workspaceId) ?? [];
+
+    const updatedUsers = users.filter(id => id !== userId);
+
+    if (updatedUsers.length > 0) {
+      this.activeRooms.set(workspaceId, updatedUsers);
+    } else {
+      this.activeRooms.delete(workspaceId);
+    }
+
+    console.log(`User ${userId} left workspace ${workspaceId}`);
+    console.log(`Current users in workspace ${workspaceId}:`, updatedUsers);
+  });
+}
 
   private handleDisconnect() {
     this.activeRooms.forEach((users, roomId) => {
       this.activeRooms.set(
         roomId,
-        users.filter(id => id !== id) // Note: requires socket passed here if you want per socket cleanup
+        users.filter(id => id !== id)
       );
       if ((this.activeRooms.get(roomId)?.length ?? 0) === 0) {
         this.activeRooms.delete(roomId);
