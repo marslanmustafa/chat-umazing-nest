@@ -511,7 +511,7 @@ export class WorkspaceService {
     }
 
     const message = await this.MessageModel.create({
-      id: `msg-${Date.now()}`,
+      id: `workspace-msg-${Date.now()}-${CryptUtil.generateId()}`,
       workspaceId: workspace.id,
       SenderId: senderId,
       message_text: content,
@@ -566,8 +566,16 @@ export class WorkspaceService {
       messageQuery.offset = (pageNo - 1) * pageSize;
     }
 
-    const messages = await this.MessageModel.findAll(messageQuery);
-
+    const messages = await this.MessageModel.findAll({
+      ...messageQuery,
+      include: [
+        {
+          model: User,
+          as: 'Sender',
+          attributes: ['id', 'name', 'email', 'imageUrl'],
+        },
+      ],
+    });
     const workspace = singleWorkspace.toJSON();
     workspace.messages = messages;
 

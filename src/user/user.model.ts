@@ -9,6 +9,7 @@ import {
 import { ChatRoom } from '../chatroom/chatroom.model';
 import { Message } from '../message/message.model';
 import { Workspace } from 'src/workspace/models/workspace.model';
+import { WorkspaceMember } from 'src/workspace/models/workspaceMemeber.model';
 
 interface UserCreationAttrs  {
   id: string;
@@ -49,4 +50,7 @@ export class User extends Model<User, UserCreationAttrs> {
 
   @HasMany(() => Workspace, 'createdBy')
   declare createdWorkspaces: Workspace[];
+
+@HasMany(() => WorkspaceMember, { foreignKey: 'userId', as: 'member' })
+declare workspaceMemberships: WorkspaceMember[];
 }

@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { ChatRoom } from 'src/chatroom/chatroom.model';
 import { Message } from 'src/message/message.model';
 import { User } from 'src/user/user.model';
-import { Op } from 'sequelize';
+import { Workspace } from '../models/workspace.model';
+import { WorkspaceMember } from '../models/workspaceMemeber.model';
+import { CryptUtil } from 'src/utils/crypt.util';
 
 @Injectable()
 export class WorkspaceMessageHandlersService {
@@ -11,62 +12,63 @@ export class WorkspaceMessageHandlersService {
 
   handle(server: Server, socket: Socket) {
     this.handleSendMessage(server, socket);
-    this.handleJoinChatRoom(socket);
+    this.handleJoinWorkspace(socket);
     this.handleLeaveChatRoom(socket);
     this.handleDisconnect();
   }
 
   private handleSendMessage(server: Server, socket: Socket) {
-    socket.on('sendMessage', async ({ receiverId, content }) => {
+    socket.on('sendMessage', async ({ workspaceId, content }) => {
       try {
         const senderId = socket.data.user.id;
-        console.log({ senderId, receiverId, content });
+        console.log({ senderId, workspaceId, content });
 
-        if (senderId === receiverId) {
-          return socket.emit('error', { message: 'You cannot send a message to yourself.' });
-        }
-
-        let room = await ChatRoom.findOne({
-          where: {
-            [Op.or]: [
-              { UserId1: senderId, UserId2: receiverId },
-              { UserId1: receiverId, UserId2: senderId },
-            ],
-          },
-
-          include: [
-            { model: User, as: 'user1', attributes: ['id', 'name', 'email', 'imageUrl'] },
-            { model: User, as: 'user2', attributes: ['id', 'name', 'email', 'imageUrl'] },
-          ],
+        const workspace = await Workspace.findOne({
+          where: { id: workspaceId },
         });
 
-        if (!room) {
-          room = await ChatRoom.create({
-            id: `${senderId}-${receiverId}`,
-            UserId1: senderId,
-            UserId2: receiverId,
+        if (!workspace) {
+          socket.emit('sendMessage_Error', {
+            message: "Workspace Not Found"
+          })
+        }
+
+        const isMember = await WorkspaceMember.findOne({
+          where: { workspaceId, userId: senderId },
+        });
+
+        if (!isMember) {
+          socket.emit('sendMessage_Error', {
+            message: "You are not a member of this workspace"
           });
         }
 
+
         const message = await Message.create({
-          id: `msg-${Date.now()}`,
-          RoomId: room.id,
+          id: `workspace-msg-${Date.now()}-${CryptUtil.generateId()}`,
+          workspaceId,
           SenderId: senderId,
-          ReceiverId: receiverId,
           message_text: content,
-          type: 'dm'
+          type: 'workspace'
         });
 
         const sender = await User.findByPk(senderId, { attributes: ['id', 'name', 'email', 'imageUrl'] });
-        const receiver = await User.findByPk(receiverId, { attributes: ['id', 'name', 'email', 'imageUrl'] });
+        const workspaceMembers = await User.findAll({
+          include: [{
+            model: WorkspaceMember,
+            as: 'member',
+            where: { workspaceId }
+          }],
+          attributes: ['id', 'name', 'email', 'imageUrl']
+        });
 
         const messagePayload = {
-          roomId: room.id,
+          workspaceId,
           message: {
             id: message.id,
-            content: message.message_text,
-            sender,
-            receiver,
+            message_text: message.message_text,
+            SenderId: senderId,
+            Sender: sender,
             timestamp: message.createdAt,
             isRead: false,
           },
@@ -74,82 +76,91 @@ export class WorkspaceMessageHandlersService {
 
         // Emit to sender
         socket.emit('receiveMessage', messagePayload);
+        const socketsInRoom = await server.in(workspaceId).fetchSockets();
+        console.log(`Number of users in workspace ${workspaceId}:`, socketsInRoom.length);
+        socket.to(workspaceId).emit('receiveMessage', messagePayload);
+        // const memberIds = workspaceMembers.map(u => u.id);
+        // const workspaceMembersSockets = Array.from(server.sockets.values()).filter(
+        //   (s: any) => memberIds.includes(s.data?.user?.id)
+        // );
 
-        const receiverSocket = Array.from(server.sockets.sockets.values()).find(
-          (s: any) => s.data?.user?.id === receiverId
-        );
+        // console.log(workspaceMembersSockets)
 
-        if (receiverSocket) {
-          receiverSocket.emit('receiveMessage', messagePayload);
+        // if (workspaceMembersSockets.length) {
+        //   workspaceMembersSockets.forEach(socket => {
+        //     socket.emit('receiveMessage', messagePayload);
+        //   });
+        // }
 
-          const usersInRoom = this.activeRooms.get(room.id) || [];
-          if (usersInRoom.includes(receiverId)) {
-            await Message.update({ read: true }, { where: { id: message.id } });
-            messagePayload.message.isRead = true;
+        //   const usersInRoom = this.activeRooms.get(room.id) || [];
+        //   if (usersInRoom.includes(receiverId)) {
+        //     await Message.update({ read: true }, { where: { id: message.id } });
+        //     messagePayload.message.isRead = true;
 
-            socket.emit('messageRead', { roomId: room.id, messageId: message.id });
-            receiverSocket.emit('messageRead', { roomId: room.id, messageId: message.id });
-          }
-        } else {
-          console.log(`Receiver ${receiverId} is not connected.`);
-        }
+        //     socket.emit('messageRead', { roomId: room.id, messageId: message.id });
+        //     receiverSocket.emit('messageRead', { roomId: room.id, messageId: message.id });
+        //   }
+        // } else {
+        //   console.log(`Receiver ${receiverId} is not connected.`);
+        // }
 
-        const senderUnreadCount = await Message.count({
-          where: { read: false, ReceiverId: senderId, RoomId: room.id },
-        });
-        const receiverUnreadCount = await Message.count({
-          where: { read: false, ReceiverId: receiverId, RoomId: room.id },
-        });
+        // const senderUnreadCount = await Message.count({
+        //   where: { read: false, ReceiverId: senderId, RoomId: room.id },
+        // });
+        // const receiverUnreadCount = await Message.count({
+        //   where: { read: false, ReceiverId: receiverId, RoomId: room.id },
+        // });
 
-        const updatedRoomForSender = {
-          roomId: room.id,
-          lastMessage: {
-            senderId,
-            receiverId,
-            content: message.message_text,
-            timestamp: message.createdAt,
-            isRead: messagePayload.message.isRead,
-          },
-          unreadMessages: senderUnreadCount,
-        };
+        // const updatedRoomForSender = {
+        //   roomId: room.id,
+        //   lastMessage: {
+        //     senderId,
+        //     receiverId,
+        //     content: message.message_text,
+        //     timestamp: message.createdAt,
+        //     isRead: messagePayload.message.isRead,
+        //   },
+        //   unreadMessages: senderUnreadCount,
+        // };
 
-        const updatedRoomForReceiver = {
-          roomId: room.id,
-          lastMessage: {
-            senderId,
-            receiverId,
-            content: message.message_text,
-            timestamp: message.createdAt,
-            isRead: messagePayload.message.isRead,
-          },
-          unreadMessages: receiverUnreadCount,
-        };
+        // const updatedRoomForReceiver = {
+        //   roomId: room.id,
+        //   lastMessage: {
+        //     senderId,
+        //     receiverId,
+        //     content: message.message_text,
+        //     timestamp: message.createdAt,
+        //     isRead: messagePayload.message.isRead,
+        //   },
+        //   unreadMessages: receiverUnreadCount,
+        // };
 
-        socket.emit('newMessage', updatedRoomForSender);
-        if (receiverSocket) {
-          receiverSocket.emit('newMessage', updatedRoomForReceiver);
-        }
+        // socket.emit('newMessage', updatedRoomForSender);
+        // if (receiverSocket) {
+        //   receiverSocket.emit('newMessage', updatedRoomForReceiver);
+        // }
       } catch (err) {
         console.error('Error sending message:', err);
       }
     });
   }
 
-  private handleJoinChatRoom(socket: Socket) {
-    socket.on('joinChatRoom', (roomId: string) => {
-      if (!this.activeRooms.has(roomId)) {
-        this.activeRooms.set(roomId, []);
-      }
+ private handleJoinWorkspace(socket: Socket) {
+  socket.on('joinWorkspace', (workspaceId: string) => {
 
-      const users = this.activeRooms.get(roomId) ?? [];
-      if (!users.includes(socket.data.user.id)) {
-        users.push(socket.data.user.id);
-      }
+    socket.join(workspaceId);
 
-      // console.log(`User ${socket.data.user.id} joined room ${roomId}`);
-      // console.log(this.activeRooms);
-    });
-  }
+    if (!this.activeRooms.has(workspaceId)) {
+      this.activeRooms.set(workspaceId, []);
+    }
+    const users = this.activeRooms.get(workspaceId) ?? [];
+    if (!users.includes(socket.data.user.id)) {
+      users.push(socket.data.user.id);
+    }
+    this.activeRooms.set(workspaceId, users);
+  });
+}
+
 
   private handleLeaveChatRoom(socket: Socket) {
     socket.on('leaveChatRoom', (roomId: string) => {
