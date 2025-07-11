@@ -520,4 +520,64 @@ export class WorkspaceService {
 
     return success("Message Created Successfully", message);
   }
+
+  async getWorkspaceChats(
+    req: any,
+    id: string,
+    pageNo?: number,
+    pageSize?: number
+  ) {
+    const userId = req.user.id;
+
+    const isMember = await this.workspaceMemberModel.findOne({
+      where: { workspaceId: id, userId },
+    });
+
+    if (!isMember) {
+      throw new ForbiddenException('You are not a member of this workspace');
+    }
+
+    const singleWorkspace = await this.workspaceModel.findOne({
+      where: { id },
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'email', 'imageUrl'],
+        },
+      ],
+    });
+
+    if (!singleWorkspace) {
+      return failure('Workspace not found');
+    }
+
+    const totalCount = await this.MessageModel.count({
+      where: { workspaceId: id },
+    });
+
+    const messageQuery: any = {
+      where: { workspaceId: id },
+      order: [['timestamp', 'DESC']],
+    };
+
+    if (pageNo && pageSize) {
+      messageQuery.limit = pageSize;
+      messageQuery.offset = (pageNo - 1) * pageSize;
+    }
+
+    const messages = await this.MessageModel.findAll(messageQuery);
+
+    const workspace = singleWorkspace.toJSON();
+    workspace.messages = messages;
+
+    return success('Workspace fetched successfully', workspace,
+      {
+        totalCount,
+        ...(pageNo && pageSize
+          ? { pageNo, pageSize }
+          : {}),
+      }
+    );
+  }
 }

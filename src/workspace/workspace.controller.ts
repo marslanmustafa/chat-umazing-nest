@@ -78,7 +78,7 @@ export class WorkspaceController {
   }
 
   @Get(':id')
-  // @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @UseGuards(JwtAuthGuard)
   async getWorkspaceById(@Request() req: any, @Param('id') id: string) {
     return this.WorkspaceService.getWorkspaceById(req, id);
@@ -115,11 +115,22 @@ export class WorkspaceController {
 
   // message Related Routes
 
-  @Post('sendMessage')
+  @Post('chats/sendMessage')
   @UseGuards(JwtAuthGuard)
   async sendMessage(@Request() req: Request, @Body() body: SendMessageDto) {
     const senderId = (req as any).user.id; // or use a custom type (better)
     return this.WorkspaceService.sendMessage(senderId, body.workspaceId, body.content);
+  }
+
+  @Get('chats/:id')
+  @UseGuards(JwtAuthGuard)
+  async getWorkspaceChats(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Query('pageNo') pageNo?: number,
+    @Query('pageSize') pageSize?: number,
+  ) {
+    return this.WorkspaceService.getWorkspaceChats(req, id, Number(pageNo), Number(pageSize));
   }
 
 }
