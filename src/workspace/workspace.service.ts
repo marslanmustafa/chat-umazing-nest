@@ -1,14 +1,14 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Workspace } from './models/workspace.model';
 import { User } from 'src/user/user.model';
 import { failure, success } from 'src/utils/response.helper';
 import { WorkspaceMember } from './models/workspaceMemeber.model';
-import * as crypto from 'crypto'
 import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
 import { CryptUtil } from 'src/utils/crypt.util';
 import { Message } from 'src/message/message.model';
 import { MessageRead } from 'src/message/messageRead.model';
+import { Sequelize } from 'sequelize-typescript';
 
 @Injectable()
 export class WorkspaceService {
@@ -76,6 +76,7 @@ export class WorkspaceService {
         delete w.messages;
         return w;
       });
+
 
       return success(
         'Public Workspaces fetched successfully',
@@ -287,17 +288,32 @@ export class WorkspaceService {
 
       const privateWorkspaces = await this.workspaceModel.findAll(queryOptions);
 
+      const allUnreadedCount = await Promise.all(
+        privateWorkspaces.map(w => this.getWorkspaceUnreadCount(w.id, userId))
+      );
+
       const transformed = privateWorkspaces.map(workspace => {
         const w = workspace.toJSON();
+
+        const unreadInfo = allUnreadedCount.find(
+          u => u.workspaceId === w.id
+        );
+
+        w.unreadedCount = unreadInfo ? unreadInfo.unreadedCount : 0;
+
         w.lastMessage = w.messages?.[0] || null;
+
         delete w.messages;
+
         return w;
       });
+
 
       return success(
         'Private Workspaces fetched successfully',
         transformed,
         {
+          aa: allUnreadedCount,
           totals: totalCount,
           ...(pageNo && pageSize
             ? { pageNo, pageSize }
@@ -592,6 +608,9 @@ export class WorkspaceService {
               as: 'user',
               attributes: ['id', 'name', 'email', 'imageUrl'],
             },
+            {
+              
+            }
           ],
         },
       ],
@@ -621,5 +640,34 @@ export class WorkspaceService {
       }
     );
   }
+
+  async getWorkspaceUnreadCount(workspaceId: string, userId: string) {
+    // console.log(workspaceId, userId)
+    try {
+      const unreadMessages = await this.MessageModel.findAll({
+        where: { workspaceId },
+        include: [
+          {
+            model: this.MessageReadModel,
+            as: 'messageReads',
+            required: false,
+            where: { userId },
+          },
+          {
+            model: this.workspaceModel,
+            attributes: ['id', 'name']
+          },
+        ],
+        group: ['Message.id'],
+        having: Sequelize.literal('COUNT(`messageReads`.`id`) = 0'),
+      });
+      return { unreadedCount: unreadMessages.length, workspaceId };
+
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+      throw error;
+    }
+  }
+
 
 }
