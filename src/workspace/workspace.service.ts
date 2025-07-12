@@ -15,9 +15,9 @@ export class WorkspaceService {
   constructor(
     @InjectModel(Workspace) private workspaceModel: typeof Workspace,
     @InjectModel(WorkspaceMember) private workspaceMemberModel: typeof WorkspaceMember,
-    @InjectModel(Message) private MessageModel: typeof Message,
+    @InjectModel(Message) private messageModel: typeof Message,
     @InjectModel(User) private userModel: typeof User,
-    @InjectModel(MessageRead) private MessageReadModel: typeof MessageRead,
+    @InjectModel(MessageRead) private messageReadModel: typeof MessageRead,
   ) { }
 
   async getAllPublicWorkspaces(pageNo?: number, pageSize?: number) {
@@ -528,7 +528,7 @@ export class WorkspaceService {
       throw new ForbiddenException('You are not a member of this workspace');
     }
 
-    const message = await this.MessageModel.create({
+    const message = await this.messageModel.create({
       id: `workspace-msg-${Date.now()}-${CryptUtil.generateId()}`,
       workspaceId: workspace.id,
       SenderId: senderId,
@@ -559,7 +559,7 @@ export class WorkspaceService {
       where: { id },
       include: [
         {
-          model: User,
+          model: this.userModel,
           as: 'creator',
           attributes: ['id', 'name', 'email', 'imageUrl'],
         },
@@ -570,7 +570,7 @@ export class WorkspaceService {
       return failure('Workspace not found');
     }
 
-    const totalCount = await this.MessageModel.count({
+    const totalCount = await this.messageModel.count({
       where: { workspaceId: id },
     });
 
@@ -590,7 +590,7 @@ export class WorkspaceService {
     });
     const memberIds = members.map(m => m.userId);
 
-    const messages = await this.MessageModel.findAll({
+    const messages = await this.messageModel.findAll({
       ...messageQuery,
       include: [
         {
@@ -608,9 +608,6 @@ export class WorkspaceService {
               as: 'user',
               attributes: ['id', 'name', 'email', 'imageUrl'],
             },
-            {
-              
-            }
           ],
         },
       ],
@@ -644,11 +641,11 @@ export class WorkspaceService {
   async getWorkspaceUnreadCount(workspaceId: string, userId: string) {
     // console.log(workspaceId, userId)
     try {
-      const unreadMessages = await this.MessageModel.findAll({
+      const unreadMessages = await this.messageModel.findAll({
         where: { workspaceId },
         include: [
           {
-            model: this.MessageReadModel,
+            model: this.messageReadModel,
             as: 'messageReads',
             required: false,
             where: { userId },
