@@ -8,10 +8,12 @@ import {
   PrimaryKey,
   Default,
   DataType,
+  HasMany,
 } from 'sequelize-typescript';
 import { ChatRoom } from '../chatroom/chatroom.model';
 import { User } from '../user/user.model';
 import { Workspace } from 'src/workspace/models/workspace.model';
+import { MessageRead } from './messageRead.model';
 
 interface MessageCreationAttrs {
   id: string;
@@ -73,4 +75,7 @@ export class Message extends Model<Message, MessageCreationAttrs> {
 
   @BelongsTo(() => Workspace, 'workspaceId')
   declare workspace: Workspace;
+
+ @HasMany(() => MessageRead)
+  messageReads: MessageRead[];
 }

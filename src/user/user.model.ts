@@ -5,13 +5,15 @@ import {
   Model,
   HasMany,
   PrimaryKey,
+  BelongsToMany,
 } from 'sequelize-typescript';
 import { ChatRoom } from '../chatroom/chatroom.model';
 import { Message } from '../message/message.model';
 import { Workspace } from 'src/workspace/models/workspace.model';
 import { WorkspaceMember } from 'src/workspace/models/workspaceMemeber.model';
+import { MessageRead } from 'src/message/messageRead.model';
 
-interface UserCreationAttrs  {
+interface UserCreationAttrs {
   id: string;
   name: string;
   email: string;
@@ -51,6 +53,12 @@ export class User extends Model<User, UserCreationAttrs> {
   @HasMany(() => Workspace, 'createdBy')
   declare createdWorkspaces: Workspace[];
 
-@HasMany(() => WorkspaceMember, { foreignKey: 'userId', as: 'member' })
-declare workspaceMemberships: WorkspaceMember[];
+  @HasMany(() => WorkspaceMember, { foreignKey: 'userId', as: 'member' })
+  declare workspaceMemberships: WorkspaceMember[];
+
+   @HasMany(() => MessageRead)
+  messageReads: MessageRead[];
+
+  @BelongsToMany(() => Message, () => MessageRead)
+  readMessages: Message[];
 }

@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { Message } from 'src/message/message.model';
+import { MessageRead } from 'src/message/messageRead.model';
 
 @Injectable()
 export class WorkspaceHandlersService {
   handle(server: Server, socket: Socket) {
-    this.handleMessageRead(server, socket);
+    this.handleReadMessage(socket);
     this.handleTyping(socket);
     this.handleStopTyping(socket);
   }
@@ -42,24 +43,26 @@ private handleStopTyping(socket: Socket) {
   });
 }
 
-  private handleMessageRead(server: Server, socket: Socket) {
-    socket.on('messageRead', async ({ workspaceId }: { workspaceId: string }) => {
-      try {
-        const user = socket.data.user;
-        if (!user?.id || !workspaceId) return;
+private handleReadMessage(socket: Socket) {
+  socket.on('readMessage', async ({ workspaceId, messageId, userId }) => {
+    if (!workspaceId || !messageId || !userId) return;
 
-        await Message.update(
-          { read: true },
-          { where: { workspaceId: workspaceId, ReceiverId: user.id, read: false } }
-        );
+    const now = new Date();
 
-        server.to(workspaceId).emit('userMessageRead', {
-          workspaceId,
-          userId: user.id,
-        });
-      } catch (err) {
-        console.error('Error in messageRead:', err);
-      }
+    await MessageRead.upsert({
+      id: `${messageId}-${userId}`,
+      messageId,
+      userId,
+      readAt: now,
     });
-  }
+
+    
+    socket.to(workspaceId).emit('messageRead', {
+      messageId,
+      userId,
+      readAt: now,
+    });
+  });
+}
+
 }
