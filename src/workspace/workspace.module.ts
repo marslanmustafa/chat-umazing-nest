@@ -9,10 +9,11 @@ import { Message } from 'src/message/message.model';
 import { WorkspaceChatGateway } from './gateway/gateway';
 import { WorkspaceMessageHandlersService } from './handlers/workspace-message-handlers.service';
 import { WorkspaceHandlersService } from './handlers/workspace-handlers.service';
+import { MessageRead } from 'src/message/messageRead.model';
 
 @Module({
    imports: [
-    SequelizeModule.forFeature([Workspace, WorkspaceMember, User, Message]),
+    SequelizeModule.forFeature([Workspace, WorkspaceMember, User, Message, MessageRead]),
   ],
   controllers: [WorkspaceController],
   providers: [WorkspaceService, WorkspaceMessageHandlersService, WorkspaceHandlersService]

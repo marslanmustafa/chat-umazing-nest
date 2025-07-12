@@ -8,6 +8,7 @@ import * as crypto from 'crypto'
 import { UpdateWorkspaceDto } from './dto/updateWorkspace.dto';
 import { CryptUtil } from 'src/utils/crypt.util';
 import { Message } from 'src/message/message.model';
+import { MessageRead } from 'src/message/messageRead.model';
 
 @Injectable()
 export class WorkspaceService {
@@ -16,6 +17,7 @@ export class WorkspaceService {
     @InjectModel(WorkspaceMember) private workspaceMemberModel: typeof WorkspaceMember,
     @InjectModel(Message) private MessageModel: typeof Message,
     @InjectModel(User) private userModel: typeof User,
+    @InjectModel(MessageRead) private MessageReadModel: typeof MessageRead,
   ) { }
 
   async getAllPublicWorkspaces(pageNo?: number, pageSize?: number) {
@@ -566,6 +568,12 @@ export class WorkspaceService {
       messageQuery.offset = (pageNo - 1) * pageSize;
     }
 
+    const members = await this.workspaceMemberModel.findAll({
+      where: { workspaceId: id },
+      attributes: ['userId'],
+    });
+    const memberIds = members.map(m => m.userId);
+
     const messages = await this.MessageModel.findAll({
       ...messageQuery,
       include: [
@@ -574,12 +582,37 @@ export class WorkspaceService {
           as: 'Sender',
           attributes: ['id', 'name', 'email', 'imageUrl'],
         },
+        {
+          model: MessageRead,
+          as: 'messageReads',
+          attributes: ['userId', 'readAt'],
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'name', 'email', 'imageUrl'],
+            },
+          ],
+        },
       ],
     });
-    const workspace = singleWorkspace.toJSON();
-    workspace.messages = messages;
 
-    return success('Workspace fetched successfully', workspace,
+    const enrichedMessages = messages.map(msg => {
+      const msgJSON = msg.toJSON();
+      const readers = msgJSON.messageReads.map(r => r.userId);
+      const allRead = memberIds.every(mid => readers.includes(mid));
+      return {
+        ...msgJSON,
+        allRead,
+      };
+    });
+
+    const workspace = singleWorkspace.toJSON();
+    workspace.messages = enrichedMessages;
+
+    return success(
+      'Workspace fetched successfully',
+      workspace,
       {
         totalCount,
         ...(pageNo && pageSize
@@ -588,4 +621,5 @@ export class WorkspaceService {
       }
     );
   }
+
 }

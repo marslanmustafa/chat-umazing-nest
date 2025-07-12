@@ -5,6 +5,7 @@ import { User } from 'src/user/user.model';
 import { Workspace } from '../models/workspace.model';
 import { WorkspaceMember } from '../models/workspaceMemeber.model';
 import { CryptUtil } from 'src/utils/crypt.util';
+import { MessageRead } from 'src/message/messageRead.model';
 
 @Injectable()
 export class WorkspaceMessageHandlersService {
@@ -21,29 +22,18 @@ export class WorkspaceMessageHandlersService {
     socket.on('sendMessage', async ({ workspaceId, content }) => {
       try {
         const senderId = socket.data.user.id;
-        console.log({ senderId, workspaceId, content });
 
-        const workspace = await Workspace.findOne({
-          where: { id: workspaceId },
-        });
-
+        const workspace = await Workspace.findOne({ where: { id: workspaceId } });
         if (!workspace) {
-          socket.emit('sendMessage_Error', {
-            message: "Workspace Not Found"
-          })
+          return socket.emit('sendMessage_Error', { message: "Workspace Not Found" });
         }
 
-        const isMember = await WorkspaceMember.findOne({
-          where: { workspaceId, userId: senderId },
-        });
-
+        const isMember = await WorkspaceMember.findOne({ where: { workspaceId, userId: senderId } });
         if (!isMember) {
-          socket.emit('sendMessage_Error', {
-            message: "You are not a member of this workspace"
-          });
+          return socket.emit('sendMessage_Error', { message: "You are not a member of this workspace" });
         }
 
-
+        // Create message
         const message = await Message.create({
           id: `workspace-msg-${Date.now()}-${CryptUtil.generateId()}`,
           workspaceId,
@@ -52,15 +42,30 @@ export class WorkspaceMessageHandlersService {
           type: 'workspace'
         });
 
-        const sender = await User.findByPk(senderId, { attributes: ['id', 'name', 'email', 'imageUrl'] });
-        const workspaceMembers = await User.findAll({
-          include: [{
-            model: WorkspaceMember,
-            as: 'member',
-            where: { workspaceId }
-          }],
+        // Mark sender as having read their own message
+        const messageRead = await MessageRead.create({
+          id: `${message.id}-${senderId}`,
+          messageId: message.id,
+          userId: senderId,
+          readAt: new Date()
+        });
+
+        // Get sender info
+        const sender = await User.findByPk(senderId, {
           attributes: ['id', 'name', 'email', 'imageUrl']
         });
+
+        let senderReadUser = {};
+
+        if (sender) {
+          senderReadUser = {
+            id: sender.id,
+            name: sender.name,
+            email: sender.email,
+            imageUrl: sender.imageUrl
+          };
+        }
+
 
         const messagePayload = {
           workspaceId,
@@ -70,15 +75,32 @@ export class WorkspaceMessageHandlersService {
             SenderId: senderId,
             Sender: sender,
             timestamp: message.createdAt,
-            isRead: false,
-          },
+            isRead: true,
+            messageReads: [
+              {
+                userId: senderId,
+                readAt: messageRead.readAt,
+                user: senderReadUser
+              }
+            ]
+          }
         };
 
-        // Emit to sender
+        // Send to sender & others
         socket.emit('receiveMessage', messagePayload);
-        const socketsInRoom = await server.in(workspaceId).fetchSockets();
-        console.log(`Number of users in workspace ${workspaceId}:`, socketsInRoom.length);
         socket.to(workspaceId).emit('receiveMessage', messagePayload);
+
+
+        const workspaceMembers = await User.findAll({
+          include: [{
+            model: WorkspaceMember,
+            as: 'member',
+            where: { workspaceId }
+          }],
+          attributes: ['id', 'name', 'email', 'imageUrl']
+        });
+
+
         // const memberIds = workspaceMembers.map(u => u.id);
         // const workspaceMembersSockets = Array.from(server.sockets.values()).filter(
         //   (s: any) => memberIds.includes(s.data?.user?.id)
@@ -145,44 +167,44 @@ export class WorkspaceMessageHandlersService {
     });
   }
 
- private handleJoinWorkspace(socket: Socket) {
-  socket.on('joinWorkspace', (workspaceId: string) => {
+  private handleJoinWorkspace(socket: Socket) {
+    socket.on('joinWorkspace', (workspaceId: string) => {
 
-    socket.join(workspaceId);
+      socket.join(workspaceId);
 
-    if (!this.activeRooms.has(workspaceId)) {
-      this.activeRooms.set(workspaceId, []);
-    }
-    const users = this.activeRooms.get(workspaceId) ?? [];
-    if (!users.includes(socket.data.user.id)) {
-      users.push(socket.data.user.id);
-    }
-    this.activeRooms.set(workspaceId, users);
-  });
-}
+      if (!this.activeRooms.has(workspaceId)) {
+        this.activeRooms.set(workspaceId, []);
+      }
+      const users = this.activeRooms.get(workspaceId) ?? [];
+      if (!users.includes(socket.data.user.id)) {
+        users.push(socket.data.user.id);
+      }
+      this.activeRooms.set(workspaceId, users);
+    });
+  }
 
 
-private handleLeaveWorkspace(socket: Socket) {
-  socket.on('leaveWorkspace', (workspaceId: string) => {
-    socket.leave(workspaceId);
+  private handleLeaveWorkspace(socket: Socket) {
+    socket.on('leaveWorkspace', (workspaceId: string) => {
+      socket.leave(workspaceId);
 
-    const userId = socket.data.user?.id;
-    if (!workspaceId || !userId) return;
+      const userId = socket.data.user?.id;
+      if (!workspaceId || !userId) return;
 
-    const users = this.activeRooms.get(workspaceId) ?? [];
+      const users = this.activeRooms.get(workspaceId) ?? [];
 
-    const updatedUsers = users.filter(id => id !== userId);
+      const updatedUsers = users.filter(id => id !== userId);
 
-    if (updatedUsers.length > 0) {
-      this.activeRooms.set(workspaceId, updatedUsers);
-    } else {
-      this.activeRooms.delete(workspaceId);
-    }
+      if (updatedUsers.length > 0) {
+        this.activeRooms.set(workspaceId, updatedUsers);
+      } else {
+        this.activeRooms.delete(workspaceId);
+      }
 
-    console.log(`User ${userId} left workspace ${workspaceId}`);
-    console.log(`Current users in workspace ${workspaceId}:`, updatedUsers);
-  });
-}
+      console.log(`User ${userId} left workspace ${workspaceId}`);
+      console.log(`Current users in workspace ${workspaceId}:`, updatedUsers);
+    });
+  }
 
   private handleDisconnect() {
     this.activeRooms.forEach((users, roomId) => {
